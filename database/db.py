@@ -51,22 +51,29 @@ def create_tables():
     conn.close()
 
 
+
 # Add a transaction
-def add_transaction(transaction_type, amount, category, description):
+def add_transaction(transaction_type, amount, category, description, transaction_date=None):
     conn = connect_db()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        INSERT INTO Transactions
-        (transaction_type, amount, category, description)
-        VALUES (?, ?, ?, ?)
-    """, (transaction_type, amount, category, description))
+    if transaction_date:
+        cursor.execute("""
+            INSERT INTO Transactions
+            (transaction_type, amount, category, description, date)
+            VALUES (?, ?, ?, ?, ?)
+        """, (transaction_type, amount, category, description, transaction_date))
+    else:
+        cursor.execute("""
+            INSERT INTO Transactions
+            (transaction_type, amount, category, description)
+            VALUES (?, ?, ?, ?)
+        """, (transaction_type, amount, category, description))
 
     conn.commit()
     conn.close()
 
     print("Transaction saved successfully!")
-
 
 # View all saved transactions
 def view_transactions():
@@ -203,6 +210,25 @@ def get_budgets():
 
     return budgets
 
+
+# Check whether a transaction already exists
+def transaction_exists(transaction_type, amount, description, transaction_date):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id FROM Transactions
+        WHERE transaction_type = ?
+        AND amount = ?
+        AND description = ?
+        AND date(date) = date(?)
+        LIMIT 1
+    """, (transaction_type, amount, description, transaction_date))
+
+    result = cursor.fetchone()
+    conn.close()
+
+    return result is not None
 
 # Run database setup
 if __name__ == "__main__":

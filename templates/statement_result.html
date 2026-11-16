@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinBot - Monthly Statement Report</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <h2>💰 FinBot</h2>
+
+        <div class="menu">
+            <a href="/">Chat</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/transactions">Transactions</a>
+            <a href="/upi-simulator">UPI Simulator</a>
+            <a href="/budgets">Budgets</a>
+            <a href="/analyze-statement" class="active">Analyze Statement</a>
+        </div>
+
+        <p class="sidebar-footer">Your Personal Finance Assistant</p>
+    </aside>
+
+    <main class="chat-area statement-page">
+
+        <div class="statement-card">
+
+            <h2>Monthly Statement Report</h2>
+            <p>Your bank statement has been processed successfully!</p>
+
+            <hr>
+
+            <h3>Import Summary</h3>
+
+            <div class="report-summary">
+                <p>Transactions Saved: <strong>{{ saved }}</strong></p>
+                <p>Duplicate Transactions Skipped: <strong>{{ duplicates }}</strong></p>
+            </div>
+
+            <hr>
+
+            <h3>Financial Summary</h3>
+
+            <div class="report-summary">
+                <p>Total Income: <strong>₹{{ "%.2f"|format(total_income) }}</strong></p>
+                <p>Total Expenses: <strong>₹{{ "%.2f"|format(total_expenses) }}</strong></p>
+                <p>Net Amount: <strong>₹{{ "%.2f"|format(balance) }}</strong></p>
+            </div>
+
+            <hr>
+
+            <h3>Expense by Category</h3>
+
+            {% if category_totals %}
+                {% for category, amount in category_totals.items() %}
+                    <p>{{ category }}: ₹{{ "%.2f"|format(amount) }}</p>
+                {% endfor %}
+            {% else %}
+                <p>No expenses found.</p>
+            {% endif %}
+
+            <hr>
+
+            <div class="report-actions">
+                <a href="/dashboard">Go to Dashboard</a>
+                <a href="/analyze-statement">Analyze Another Statement</a>
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

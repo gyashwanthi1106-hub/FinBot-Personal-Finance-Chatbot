@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinBot - Review Transactions</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .preview-page {
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .preview-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 25px;
+            overflow-x: auto;
+        }
+
+        .preview-card table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .preview-card th,
+        .preview-card td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .preview-card th {
+            background: #f1f1f1;
+        }
+
+        .preview-card button {
+            padding: 12px 20px;
+            background: #202123;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .preview-card button:hover {
+            background: #444;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+
+        <h2>💰 FinBot</h2>
+
+        <div class="menu">
+            <a href="/">Chat</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/transactions">Transactions</a>
+            <a href="/upi-simulator">UPI Simulator</a>
+            <a href="/budgets">Budgets</a>
+            <a href="/analyze-statement" class="active">Analyze Statement</a>
+        </div>
+
+        <div class="bottom">
+            Your Personal Finance Assistant
+        </div>
+
+    </aside>
+
+    <main class="chat-area preview-page">
+
+        <h2>Review Extracted Transactions</h2>
+
+        <p>Please check the transactions before importing them.</p>
+
+        <div class="preview-card">
+
+            <h3>Extracted Transactions</h3>
+
+            <table>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                </tr>
+
+                {% for item in transactions %}
+                <tr>
+                    <td>{{ item.date }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.transaction_type }}</td>
+                    <td>{{ item.category }}</td>
+                    <td>₹{{ "%.2f"|format(item.amount) }}</td>
+                </tr>
+                {% endfor %}
+
+            </table>
+
+            <p style="margin-top: 20px;">
+                Total transactions found: {{ transactions|length }}
+            </p>
+
+            <!-- Import button inside the white preview card -->
+            <form action="/import-statement" method="POST">
+                <button type="submit">
+                    Confirm and Import Transactions
+                </button>
+            </form>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

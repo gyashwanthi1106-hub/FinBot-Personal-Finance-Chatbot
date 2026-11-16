@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinBot - Statement Analysis</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .statement-page {
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .statement-page h2 {
+            margin-bottom: 10px;
+        }
+
+        .statement-card {
+            background: white;
+            padding: 35px;
+            border-radius: 12px;
+            max-width: 750px;
+            margin: 30px auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .statement-card h3 {
+            margin-bottom: 12px;
+        }
+
+        .statement-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .statement-card input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 20px 0;
+            border: 1px dashed #aaa;
+            border-radius: 8px;
+            background: #f7f7f8;
+        }
+
+        .statement-card button {
+            padding: 13px 24px;
+            background: #202123;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .statement-card button:hover {
+            background: #343541;
+        }
+
+        .statement-note {
+            margin-top: 20px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+
+        <h2>💰 FinBot</h2>
+
+        <button class="new-chat" onclick="location.href='/'">
+            + New Chat
+        </button>
+
+        <div class="menu">
+            <a href="/">Chat</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/transactions">Transactions</a>
+            <a href="/upi-simulator">UPI Simulator</a>
+            <a href="/budgets">Budgets</a>
+            <a href="/analyze-statement" class="active">Analyze Statement</a>
+        </div>
+
+        <div class="bottom">
+            Your Personal Finance Assistant
+        </div>
+
+    </aside>
+
+    <main class="chat-area statement-page">
+
+        <h2>Monthly Bank Statement Analysis</h2>
+
+        <p>Upload your bank statement and let FinBot analyze your finances.</p>
+
+        <div class="statement-card">
+
+            <h3>Upload Bank Statement</h3>
+
+            <p>
+                Select your monthly bank statement in PDF format.
+                FinBot will extract your transactions and prepare
+                them for your review.
+            </p>
+
+            <form action="/analyze-statement"
+                  method="POST"
+                  enctype="multipart/form-data">
+
+                <input
+                    type="file"
+                    name="statement"
+                    accept=".pdf,application/pdf"
+                    required
+                >
+
+                <button type="submit">Analyze Statement</button>
+
+            </form>
+
+            <p class="statement-note">
+                Note: Transactions will be displayed for your approval
+                before being saved to FinBot.
+            </p>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

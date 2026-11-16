@@ -189,3 +189,108 @@ header span {
 .input-area button:hover {
     background: #343541;
 }
+
+
+/* Statement report styling */
+
+.statement-page {
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.statement-card {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 28px;
+    background: white;
+    border-radius: 12px;
+    box-sizing: border-box;
+}
+
+.statement-card h2 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.statement-card h3 {
+    margin-top: 20px;
+    margin-bottom: 12px;
+}
+
+.statement-card hr {
+    border: 0;
+    border-top: 1px solid #e5e5e5;
+    margin: 22px 0;
+}
+
+.report-summary p {
+    margin: 12px 0;
+}
+
+.report-actions {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.import-form {
+    margin-top: 20px;
+}
+
+.import-button {
+    background: #252525;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 22px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.import-button:hover {
+    background: #444;
+}
+
+/* Keep sidebar footer at the bottom */
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+.sidebar .menu {
+    flex: 0 0 auto;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    white-space: nowrap;
+    font-size: 11px;
+    padding: 12px;
+    margin-bottom: 8px;
+}
+
+/* Statement import button */
+
+.import-form {
+    margin-top: 20px;
+}
+
+.import-button {
+    background: #252525;
+    color: white;
+    padding: 12px 22px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.import-button:hover {
+    background: #444;
+}
+

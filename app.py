@@ -6,30 +6,57 @@ from database.db import (
     get_transactions,
     get_dashboard_summary,
     add_budget,
-    get_budgets
+    get_budgets,
+    transaction_exists
 )
+
 import re
+import secrets
+import pdfplumber
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "finbot_secret_key"
 
 create_tables()
 
+# Store uploaded statement transactions temporarily
+pending_statements = {}
 
-# Category suggestions
+
+# ---------------- CATEGORY SUGGESTIONS ----------------
+
 CATEGORY_KEYWORDS = {
-    "Food": ["food", "restaurant", "hotel", "pani puri", "pizza",
-             "burger", "lunch", "dinner", "breakfast", "cafe"],
-    "Travel": ["travel", "bus", "train", "auto", "cab", "taxi", "petrol"],
-    "Shopping": ["shopping", "clothes", "dress", "costume", "shoes"],
-    "Medical": ["medical", "medicine", "hospital", "doctor"],
-    "Education": ["education", "books", "college", "course", "fees"],
-    "Entertainment": ["movie", "cinema", "game", "concert"],
-    "Rent": ["rent", "house rent"]
+    "Food": [
+        "food", "restaurant", "hotel", "pani puri", "pizza",
+        "burger", "lunch", "dinner", "breakfast", "cafe",
+        "grocery", "supermarket"
+    ],
+    "Travel": [
+        "travel", "bus", "train", "auto", "cab", "taxi",
+        "petrol", "transport"
+    ],
+    "Shopping": [
+        "shopping", "clothes", "dress", "costume", "shoes"
+    ],
+    "Medical": [
+        "medical", "medicine", "hospital", "doctor",
+        "pharmacy", "health care"
+    ],
+    "Education": [
+        "education", "books", "college", "course", "fees"
+    ],
+    "Entertainment": [
+        "movie", "cinema", "game", "concert"
+    ],
+    "Rent": [
+        "rent", "house rent"
+    ]
 }
 
 
-# Detect expense category
+# ---------------- CATEGORY DETECTION ----------------
+
 def find_category(message):
     message = message.lower()
 
@@ -41,7 +68,8 @@ def find_category(message):
     return None
 
 
-# Detect income or expense
+# ---------------- INCOME / EXPENSE DETECTION ----------------
+
 def find_transaction_type(message):
     message = message.lower()
 
@@ -58,15 +86,78 @@ def find_transaction_type(message):
     return "Expense"
 
 
-# Home page
+# ---------------- BANK STATEMENT EXTRACTION ----------------
+
+def extract_statement_transactions(text):
+
+    transactions = []
+
+    pattern = re.compile(
+        r"^(\d{2}-\d{2}-\d{4})\s+(.+?)\s+"
+        r"(-|[\d,]+\.\d{2})\s+"
+        r"(-|[\d,]+\.\d{2})\s+"
+        r"([\d,]+\.\d{2})$"
+    )
+
+    for line in text.splitlines():
+
+        # Normalize spaces extracted from the PDF
+        line = " ".join(line.split())
+
+        match = pattern.match(line)
+
+        if not match:
+            continue
+
+        date_text, description, debit, credit, balance = match.groups()
+
+        # Ignore opening balance
+        if "opening balance" in description.lower():
+            continue
+
+        if debit != "-":
+            transaction_type = "Expense"
+            amount = float(debit.replace(",", ""))
+            category = find_category(description) or "Other"
+
+        elif credit != "-":
+            transaction_type = "Income"
+            amount = float(credit.replace(",", ""))
+            category = "Income"
+
+        else:
+            continue
+
+        try:
+            transaction_date = datetime.strptime(
+                date_text, "%d-%m-%Y"
+            ).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+        transactions.append({
+            "date": transaction_date,
+            "description": description,
+            "transaction_type": transaction_type,
+            "amount": amount,
+            "category": category
+        })
+
+    return transactions
+
+
+# ---------------- HOME PAGE ----------------
+
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# Chatbot
+# ---------------- CHATBOT ----------------
+
 @app.route("/chat", methods=["POST"])
 def chat():
+
     data = request.get_json()
     message = data.get("message", "").strip()
 
@@ -74,6 +165,7 @@ def chat():
     pending = session.get("pending_transaction")
 
     if pending and pending.get("needs_category"):
+
         category = find_category(message)
 
         if not category:
@@ -91,7 +183,7 @@ def chat():
         })
 
     # Read transaction amount
-    amount_match = re.search(r'\d+(?:\.\d{1,2})?', message)
+    amount_match = re.search(r"\d+(?:\.\d{1,2})?", message)
 
     if not amount_match:
         return jsonify({
@@ -105,17 +197,15 @@ def chat():
             "reply": "Please enter an amount greater than zero."
         })
 
-    # Detect transaction type
     transaction_type = find_transaction_type(message)
 
-    # Income does not need an expense category
+    # Income transaction
     if transaction_type == "Income":
-        category = "Income"
 
         pending = {
             "amount": amount,
             "description": message,
-            "category": category,
+            "category": "Income",
             "transaction_type": "Income",
             "needs_category": False
         }
@@ -151,10 +241,11 @@ def chat():
     })
 
 
-# Confirm or cancel transaction
+# ---------------- CONFIRM OR CANCEL TRANSACTION ----------------
 
 @app.route("/confirm", methods=["POST"])
 def confirm():
+
     data = request.get_json()
     confirmed = data.get("confirmed", False)
 
@@ -166,6 +257,7 @@ def confirm():
         })
 
     if confirmed:
+
         transaction_type = pending.get("transaction_type", "Expense")
 
         add_transaction(
@@ -179,9 +271,11 @@ def confirm():
 
         # Check budget only for expenses
         if transaction_type == "Expense":
+
             budget_list = get_budgets()
 
             for budget in budget_list:
+
                 if budget["category"].lower() == pending["category"].lower():
 
                     percentage = budget["percentage"]
@@ -216,15 +310,18 @@ def confirm():
     })
 
 
-# UPI Simulator page
+# ---------------- UPI SIMULATOR PAGE ----------------
+
 @app.route("/upi-simulator")
 def upi_simulator():
     return render_template("upi_simulator.html")
 
 
-# Simulated UPI payment
+# ---------------- SIMULATED UPI PAYMENT ----------------
+
 @app.route("/simulate_upi", methods=["POST"])
 def simulate_upi():
+
     data = request.get_json()
 
     receiver = data.get("receiver", "").strip()
@@ -265,9 +362,11 @@ def simulate_upi():
     })
 
 
-# Accept category for unknown UPI receiver
+# ---------------- UPI CATEGORY SELECTION ----------------
+
 @app.route("/upi-category", methods=["POST"])
 def upi_category():
+
     data = request.get_json()
     category = data.get("category", "").strip()
 
@@ -294,16 +393,24 @@ def upi_category():
     })
 
 
-# Transactions page
+# ---------------- TRANSACTIONS PAGE ----------------
+
 @app.route("/transactions")
 def transactions():
+
     records = get_transactions()
-    return render_template("transactions.html", transactions=records)
+
+    return render_template(
+        "transactions.html",
+        transactions=records
+    )
 
 
-# Dashboard page
+# ---------------- DASHBOARD PAGE ----------------
+
 @app.route("/dashboard")
 def dashboard():
+
     total_expenses, total_income, balance, category_data = get_dashboard_summary()
 
     return render_template(
@@ -315,9 +422,11 @@ def dashboard():
     )
 
 
-# Budget Management page
+# ---------------- BUDGET MANAGEMENT PAGE ----------------
+
 @app.route("/budgets")
 def budgets():
+
     budget_list = get_budgets()
 
     return render_template(
@@ -326,9 +435,11 @@ def budgets():
     )
 
 
-# Save a new budget
+# ---------------- SAVE A NEW BUDGET ----------------
+
 @app.route("/add-budget", methods=["POST"])
 def save_budget():
+
     category = request.form.get("category", "").strip()
 
     try:
@@ -343,6 +454,133 @@ def save_budget():
 
     return redirect("/budgets")
 
+
+# ---------------- BANK STATEMENT ANALYSIS ----------------
+
+@app.route("/analyze-statement", methods=["GET", "POST"])
+def analyze_statement():
+
+    if request.method == "GET":
+        return render_template("statement_analysis.html")
+
+    if "statement" not in request.files:
+        return "Please select a PDF file.", 400
+
+    file = request.files["statement"]
+
+    if file.filename == "":
+        return "No file selected.", 400
+
+    if not file.filename.lower().endswith(".pdf"):
+        return "Please upload a PDF file only.", 400
+
+    try:
+
+        with pdfplumber.open(file.stream) as pdf:
+
+            extracted_text = ""
+
+            for page in pdf.pages:
+                extracted_text += (page.extract_text() or "") + "\n"
+
+        if not extracted_text.strip():
+            return "No readable text found in this PDF.", 400
+
+        # Print extracted text in the VS Code terminal for debugging
+        print("\n----- EXTRACTED BANK STATEMENT TEXT -----")
+        print(extracted_text)
+        print("-----------------------------------------\n")
+
+        transactions = extract_statement_transactions(extracted_text)
+
+        if not transactions:
+            return (
+                "No transactions could be identified in this PDF. "
+                "The PDF format may not match the supported sample statement layout."
+            ), 400
+
+        # Store transactions temporarily for user review
+        statement_token = secrets.token_urlsafe(16)
+        pending_statements[statement_token] = transactions
+        session["statement_token"] = statement_token
+
+        return render_template(
+            "statement_preview.html",
+            transactions=transactions,
+            statement_token=statement_token
+        )
+
+    except Exception as e:
+        return f"Unable to analyze this PDF: {e}", 400
+
+
+# ---------------- IMPORT CONFIRMED STATEMENT TRANSACTIONS ----------------
+
+@app.route("/import-statement", methods=["POST"])
+def import_statement():
+
+    statement_token = session.get("statement_token")
+    transactions = pending_statements.get(statement_token)
+
+    if not transactions:
+        return "No pending statement found. Please upload the PDF again.", 400
+
+    saved = 0
+    duplicates = 0
+
+    total_income = 0
+    total_expenses = 0
+    category_totals = {}
+
+    for item in transactions:
+
+        # Calculate report totals from all extracted transactions
+        if item["transaction_type"] == "Income":
+            total_income += item["amount"]
+        else:
+            total_expenses += item["amount"]
+
+            category = item["category"]
+            category_totals[category] = (
+                category_totals.get(category, 0) + item["amount"]
+            )
+
+        # Avoid importing an already saved transaction
+        if transaction_exists(
+            item["transaction_type"],
+            item["amount"],
+            item["description"],
+            item["date"]
+        ):
+            duplicates += 1
+            continue
+
+        add_transaction(
+            item["transaction_type"],
+            item["amount"],
+            item["category"],
+            item["description"],
+            item["date"]
+        )
+
+        saved += 1
+
+    # Clear temporary statement data after import
+    pending_statements.pop(statement_token, None)
+    session.pop("statement_token", None)
+
+    return render_template(
+        "statement_result.html",
+        saved=saved,
+        duplicates=duplicates,
+        total_income=total_income,
+        total_expenses=total_expenses,
+        balance=total_income - total_expenses,
+        category_totals=category_totals
+    )
+
+
+# ---------------- RUN APPLICATION ----------------
 
 if __name__ == "__main__":
     app.run(debug=True)
