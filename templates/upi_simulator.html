@@ -1,0 +1,274 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinBot - UPI Simulator</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .simulator {
+            padding: 35px;
+        }
+
+        .simulator-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 550px;
+            margin-top: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .simulator-card label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .simulator-card input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 7px;
+            box-sizing: border-box;
+        }
+
+        .simulator-card button {
+            margin-top: 25px;
+            padding: 12px 22px;
+            background: #202123;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+
+        #result {
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <h2>💰 FinBot</h2>
+
+        <button class="new-chat" onclick="location.href='/'">
+            + New Chat
+        </button>
+
+        <div class="menu">
+            <p><a href="/">Chat</a></p>
+            <p><a href="/dashboard">Dashboard</a></p>
+            <p><a href="/transactions">Transactions</a></p>
+            <p>Budgets</p>
+            <p><a href="/upi-simulator">UPI Simulator</a></p>
+        </div>
+
+        <div class="bottom">Your Personal Finance Assistant</div>
+    </aside>
+
+    <main class="chat-area simulator">
+
+        <h2>UPI Transaction Simulator</h2>
+
+        <p>Enter a sample payment to see how FinBot detects and categorizes transactions.</p>
+
+        <div class="simulator-card">
+
+            <h3>Simulate a Payment</h3>
+
+            <form id="upiForm">
+
+                <label for="receiver">Receiver Name</label>
+                <input
+                    type="text"
+                    id="receiver"
+                    placeholder="Example: ABC Restaurant"
+                    required
+                >
+
+                <label for="amount">Transaction Amount (₹)</label>
+                <input
+                    type="number"
+                    id="amount"
+                    placeholder="Example: 250"
+                    min="0.01"
+                    step="0.01"
+                    required
+                >
+
+                <label for="transactionId">Transaction ID</label>
+                <input
+                    type="text"
+                    id="transactionId"
+                    placeholder="Example: UPI123456"
+                    required
+                >
+
+                <button type="submit">Simulate Payment</button>
+
+            </form>
+
+            <div id="result"></div>
+
+        </div>
+
+    </main>
+</div>
+
+
+
+<script>
+document.getElementById("upiForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const receiver = document.getElementById("receiver").value.trim();
+    const amount = document.getElementById("amount").value;
+    const transactionId = document.getElementById("transactionId").value.trim();
+
+    const result = document.getElementById("result");
+    result.innerHTML = "Processing payment...";
+
+    try {
+        const response = await fetch("/simulate_upi", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                receiver: receiver,
+                amount: amount,
+                transaction_id: transactionId
+            })
+        });
+
+        const data = await response.json();
+
+        result.innerHTML = "";
+
+        const message = document.createElement("p");
+        message.textContent = data.reply;
+        result.appendChild(message);
+
+        // Unknown receiver: ask user to enter category
+        if (data.needs_category) {
+            const categoryInput = document.createElement("input");
+            categoryInput.type = "text";
+            categoryInput.placeholder = "Enter category (Food, Shopping, Travel...)";
+            categoryInput.id = "upiCategoryInput";
+
+            const categoryButton = document.createElement("button");
+            categoryButton.textContent = "Submit Category";
+
+            categoryButton.onclick = () => submitUPICategory();
+
+            result.appendChild(categoryInput);
+            result.appendChild(categoryButton);
+        }
+
+        // Recognized or selected category: ask for confirmation
+        if (data.needs_confirmation) {
+            showConfirmationButtons();
+        }
+
+    } catch (error) {
+        result.textContent = "Unable to connect to FinBot. Please try again.";
+    }
+});
+
+
+// Submit user-selected category
+async function submitUPICategory() {
+    const category = document.getElementById("upiCategoryInput").value.trim();
+    const result = document.getElementById("result");
+
+    if (!category) {
+        alert("Please enter a category.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/upi-category", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                category: category
+            })
+        });
+
+        const data = await response.json();
+
+        result.innerHTML = "";
+
+        const message = document.createElement("p");
+        message.textContent = data.reply;
+        result.appendChild(message);
+
+        if (data.needs_confirmation) {
+            showConfirmationButtons();
+        }
+
+    } catch (error) {
+        result.textContent = "Unable to submit category. Please try again.";
+    }
+}
+
+
+// Display Yes and No buttons
+function showConfirmationButtons() {
+    const result = document.getElementById("result");
+
+    const yesButton = document.createElement("button");
+    yesButton.textContent = "Yes, Confirm";
+    yesButton.onclick = () => confirmUPI(true);
+
+    const noButton = document.createElement("button");
+    noButton.textContent = "No, Cancel";
+    noButton.onclick = () => confirmUPI(false);
+
+    result.appendChild(yesButton);
+    result.appendChild(noButton);
+}
+
+
+// Confirm or cancel payment
+async function confirmUPI(confirmed) {
+    const result = document.getElementById("result");
+
+    const buttons = result.querySelectorAll("button");
+    buttons.forEach(button => button.disabled = true);
+
+    try {
+        const response = await fetch("/confirm", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                confirmed: confirmed
+            })
+        });
+
+        const data = await response.json();
+        result.textContent = data.reply;
+
+    } catch (error) {
+        result.textContent = "Unable to confirm payment. Please try again.";
+    }
+}
+</script>
+
+
+
+</body>
+</html>

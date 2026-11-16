@@ -1,0 +1,233 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinBot Dashboard</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .dashboard {
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .summary {
+            display: flex;
+            gap: 20px;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            flex: 1;
+            min-width: 180px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .summary-card h3 {
+            color: #666;
+            font-size: 15px;
+        }
+
+        .summary-card p {
+            font-size: 25px;
+            font-weight: bold;
+        }
+
+        .dashboard table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            margin-top: 15px;
+        }
+
+        .dashboard th,
+        .dashboard td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .dashboard th {
+            background: #f1f1f1;
+        }
+
+        /* Compact expense chart */
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            width: 100%;
+            max-width: 750px;
+            height: 380px;
+        }
+
+        .chart-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+
+        <h2>💰 FinBot</h2>
+
+        <button class="new-chat" onclick="location.href='/'">
+            + New Chat
+        </button>
+
+        <div class="menu">
+            <a href="/">Chat</a>
+            <a href="/dashboard" class="active">Dashboard</a>
+            <a href="/transactions">Transactions</a>
+            <a href="/upi-simulator">UPI Simulator</a>
+            <a href="/budgets">Budgets</a>
+        </div>
+
+        <div class="bottom">
+            Your Personal Finance Assistant
+        </div>
+
+    </aside>
+
+    <main class="chat-area dashboard">
+
+        <h2>Financial Dashboard</h2>
+        <p>Here's an overview of your finances.</p>
+
+        <!-- Financial Summary -->
+
+        <div class="summary">
+
+            <div class="summary-card">
+                <h3>Total Expenses</h3>
+                <p>₹{{ "%.2f"|format(total_expenses) }}</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Total Income</h3>
+                <p>₹{{ "%.2f"|format(total_income) }}</p>
+            </div>
+
+            <div class="summary-card">
+                <h3>Balance</h3>
+                <p>₹{{ "%.2f"|format(balance) }}</p>
+            </div>
+
+        </div>
+
+        <!-- Expense Chart -->
+
+        <h3>Expense Overview</h3>
+
+        <div class="chart-container">
+            <canvas id="expenseChart"></canvas>
+        </div>
+
+        <!-- Chart Data -->
+
+        <script id="category-data" type="application/json">
+            {{ category_data | tojson }}
+        </script>
+
+        <!-- Chart Library -->
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+        <script>
+
+            const categoryData = JSON.parse(
+                document.getElementById("category-data").textContent
+            );
+
+            const categories = categoryData.map(item => item[0]);
+            const amounts = categoryData.map(item => item[1]);
+
+            new Chart(document.getElementById("expenseChart"), {
+
+                type: "bar",
+
+                data: {
+                    labels: categories,
+
+                    datasets: [{
+                        label: "Expenses (₹)",
+                        data: amounts,
+                        backgroundColor: "#36A2EB",
+                        categoryPercentage: 0.75,
+                        barPercentage: 0.8,
+                        maxBarThickness: 55
+                    }]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    scales: {
+                        x: {
+                            offset: true,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                align: "center"
+                            }
+                        },
+
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+
+            });
+
+        </script>
+
+        <!-- Category-wise Expense Table -->
+
+        <h3>Category-wise Expenses</h3>
+
+        <table>
+
+            <tr>
+                <th>Category</th>
+                <th>Amount</th>
+            </tr>
+
+            {% for category, amount in category_data %}
+
+            <tr>
+                <td>{{ category }}</td>
+                <td>₹{{ "%.2f"|format(amount) }}</td>
+            </tr>
+
+            {% else %}
+
+            <tr>
+                <td colspan="2">No expenses recorded yet.</td>
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+    </main>
+
+</div>
+
+</body>
+</html>

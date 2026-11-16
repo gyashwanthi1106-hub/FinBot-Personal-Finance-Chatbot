@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinBot - Personal Finance Assistant</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+
+        <h2>💰 FinBot</h2>
+
+        <button class="new-chat" onclick="location.href='/'">
+            + New Chat
+        </button>
+
+        <div class="menu">
+            <a href="/">Chat</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/transactions">Transactions</a>
+            <a href="/upi-simulator">UPI Simulator</a>
+            <a href="/budgets">Budgets</a>
+        </div>
+
+        <div class="bottom">
+            Your Personal Finance Assistant
+        </div>
+
+    </aside>
+
+
+    <main class="chat-area">
+
+        <header>
+            <h3>Personal Finance Assistant</h3>
+            <span>Online</span>
+        </header>
+
+
+        <div class="messages" id="messages">
+
+            <div class="bot-message">
+                <strong>FinBot</strong>
+                <p>Hello! 👋 Welcome to FinBot.</p>
+                <p>I can help you track expenses, manage budgets and understand your spending.</p>
+                <p>How can I help you today?</p>
+            </div>
+
+        </div>
+
+
+        <div class="input-area">
+
+            <input
+                type="text"
+                id="userInput"
+                placeholder="Ask FinBot anything about your money..."
+            >
+
+            <button onclick="sendMessage()">Send</button>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script>
+
+async function sendMessage() {
+
+    const input = document.getElementById("userInput");
+    const message = input.value.trim();
+
+    if (message === "") return;
+
+    addMessage(message, "user-message");
+
+    input.value = "";
+
+    try {
+
+        const response = await fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ message: message })
+        });
+
+        const data = await response.json();
+
+        addMessage(data.reply, "bot-message");
+
+        if (data.needs_confirmation) {
+            showConfirmationButtons();
+        }
+
+    } catch (error) {
+
+        addMessage("Unable to connect to FinBot. Please try again.", "bot-message");
+
+    }
+
+}
+
+
+function addMessage(message, className) {
+
+    const messages = document.getElementById("messages");
+
+    const div = document.createElement("div");
+    div.className = className;
+
+    if (className === "bot-message") {
+
+        const title = document.createElement("strong");
+        title.textContent = "FinBot";
+
+        const paragraph = document.createElement("p");
+        paragraph.textContent = message;
+
+        div.appendChild(title);
+        div.appendChild(paragraph);
+
+    } else {
+
+        div.textContent = message;
+
+    }
+
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+
+}
+
+
+function showConfirmationButtons() {
+
+    const messages = document.getElementById("messages");
+
+    const buttonArea = document.createElement("div");
+    buttonArea.className = "bot-message";
+
+    const yesButton = document.createElement("button");
+    yesButton.textContent = "Yes, Confirm";
+    yesButton.style.marginRight = "10px";
+
+    const noButton = document.createElement("button");
+    noButton.textContent = "No, Cancel";
+
+    yesButton.onclick = () => confirmTransaction(true, buttonArea, yesButton, noButton);
+    noButton.onclick = () => confirmTransaction(false, buttonArea, yesButton, noButton);
+
+    buttonArea.appendChild(yesButton);
+    buttonArea.appendChild(noButton);
+
+    messages.appendChild(buttonArea);
+    messages.scrollTop = messages.scrollHeight;
+
+}
+
+
+async function confirmTransaction(confirmed, buttonArea, yesButton, noButton) {
+
+    yesButton.disabled = true;
+    noButton.disabled = true;
+
+    try {
+
+        const response = await fetch("/confirm", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ confirmed: confirmed })
+        });
+
+        const data = await response.json();
+
+        buttonArea.remove();
+
+        addMessage(data.reply, "bot-message");
+
+    } catch (error) {
+
+        yesButton.disabled = false;
+        noButton.disabled = false;
+
+        addMessage("Unable to confirm the transaction. Please try again.", "bot-message");
+
+    }
+
+}
+
+
+document.getElementById("userInput").addEventListener("keydown", function(event) {
+
+    if (event.key === "Enter") {
+        event.preventDefault();
+        sendMessage();
+    }
+
+});
+
+</script>
+
+</body>
+</html>
